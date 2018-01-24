@@ -30,3 +30,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - mset
+    - QuickCheck

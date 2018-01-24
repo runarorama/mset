@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
+
 module Data.Realm where
 
 import Control.Applicative
@@ -61,13 +62,14 @@ import Numeric.Natural
 -- (m \/ n) <> (m /\ n) ≡ m <> n
 -- @
 --
--- Cancellation law
+-- Some realms may additionally obey a cancellation law, and we call
+-- these cancellative realms:
 --
 -- @
 -- (k <> n = m <> n) => (k = m)
 -- @
 --
--- This is a subclass of `Ord` because any join semilattice defines an order
+-- @Realm@ is a subclass of @Ord@ because any join semilattice defines an order
 --
 -- @
 -- m <= n = m \/ n == n
@@ -76,8 +78,8 @@ class (Ord a, Monoid a) => Realm a where
   (\/) :: a -> a -> a
   (/\) :: a -> a -> a
 
--- | Numbers with addition form a realm
-instance (Ord a, Num a) => Realm (Sum a) where
+-- | Natural numbers with addition form a realm
+instance Realm (Sum Natural) where
   a \/ b = max a b
   a /\ b = min a b
 
@@ -104,5 +106,54 @@ instance Integral a => Realm (Product a) where
 
 instance Realm a => Realm (Maybe a) where
   n \/ m = ((\/) <$> n <*> m) <|> n <|> m
-  n /\ m = ((/\) <$> n <*> m) <|> n <|> m
+  n /\ m = ((/\) <$> n <*> m)
+
+commutativeLaw :: Realm r => r -> r -> Bool
+commutativeLaw m n =
+  and [ m <> n == n <> m
+      , m \/ n == n \/ m
+      , m /\ n == n /\ m
+      ]
+
+associativeLaw :: Realm r => r -> r -> r -> Bool
+associativeLaw k m n =
+  and [ k <> (m <> n) == (k <> m) <> n
+      , k \/ (m \/ n) == (k \/ m) \/ n
+      , k /\ (m /\ n) == (k /\ m) /\ n
+      ]
+
+distributiveLaw :: Realm r => r -> r -> r -> Bool
+distributiveLaw k m n =
+  and [ k <> (m \/ n) == (k <> m) \/ (k <> n)
+      , k <> (m /\ n) == (k <> m) /\ (k <> n)
+      , k /\ (m \/ n) == (k /\ m) \/ (k /\ n)
+      , k \/ (m /\ n) == (k \/ m) /\ (k \/ n)
+      ]
+
+identityLaw :: Realm r => r -> Bool
+identityLaw m =
+  and [ mempty <> m == m
+      , mempty \/ m == m
+      , mempty /\ m == mempty
+      ]
+
+absorptionLaw :: Realm r => r -> r -> Bool
+absorptionLaw m n =
+  and [ m \/ (m /\ n) == m
+      , m /\ (m \/ n) == m
+      ]
+
+idempotentLaw :: Realm r => r -> Bool
+idempotentLaw m =
+  and [ m /\ m == m
+      , m \/ m == m
+      ]
+
+summationLaw :: Realm r => r -> r -> Bool
+summationLaw m n =
+  (m \/ n) <> (m /\ n) == m <> n
+
+cancellationLaw :: Realm r => r -> r -> r -> Bool
+cancellationLaw k m n =
+  (k <> n /= m <> n) || (k == m)
 
